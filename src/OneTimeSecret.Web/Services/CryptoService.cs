@@ -15,9 +15,10 @@ namespace OneTimeSecret.Web.Services
 
         public string CreateRandomString(int length)
         {
-            var bytes = this.aesEncryptionService.GenerateSecureRandomBytes(length);
+            byte[] randomBytes = new byte[length];
+            RandomNumberGenerator.Fill(randomBytes);
 
-            return bytes.ToHex();
+            return randomBytes.ToHex();
         }
 
         public string DecryptData(string data, string passphrase = null)
