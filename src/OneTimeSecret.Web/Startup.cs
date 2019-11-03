@@ -58,9 +58,7 @@ namespace OneTimeSecret.Web
             services.AddTransient<IClock>(s => SystemClock.Instance);
             services.AddTransient<ICryptoService, CryptoService>();
 
-            var key = Encoding.UTF8.GetBytes(aesSettings.MasterKey);
-
-            services.AddTransient<IAesEncryptionService>(s => new AesEncryptionService(key, aesSettings.Version));
+            services.AddTransient<IAesEncryptionService>(s => new AesEncryptionService(aesSettings.MasterKey, aesSettings.Version));
 
             services
                 .AddMvc()

@@ -4,6 +4,7 @@
     using System.IO;
     using System.Security.Cryptography;
     using System.Text;
+    using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 
     public class AesEncryptionService : IAesEncryptionService
     {
@@ -15,10 +16,10 @@
         private const int TagLengthBytes = 16;
         private const int TokenPrefixLengthBytes = VersionLengthBytes + NonceLengthBytes + TagLengthBytes;
 
-        private readonly byte[] masterKey;
+        private readonly string masterKey;
         private readonly byte encryptVersion;
 
-        public AesEncryptionService(byte[] masterKey, byte encryptVersion)
+        public AesEncryptionService(string masterKey, byte encryptVersion)
         {
             if (masterKey == null)
             {
@@ -39,9 +40,7 @@
 
             RandomNumberGenerator.Fill(nonce);
 
-            byte[] hashPassPhrase = this.Hash(passPhrase);
-
-            return this.EncryptRaw(data, nonce, this.encryptVersion, hashPassPhrase);
+            return this.EncryptRaw(data, nonce, this.encryptVersion, passPhrase);
         }
 
         public byte[] Decrypt(byte[] token, string passPhrase = null)
@@ -51,51 +50,53 @@
                 throw new ArgumentNullException("token");
             }
 
-            byte[] hashPassPhrase = this.Hash(passPhrase);
-
-            return DecryptRaw(token, hashPassPhrase);
+            return DecryptRaw(token, passPhrase);
         }
 
         // NOTE: The format of the result is as follows
         // format: | version | nonce | tag | ciphertext |
         // bytes:  |    1    |  12   | 16 |    16*n    |
         // NOTE: n is the number of blocks needed in the range [1, inf)
-        private byte[] EncryptRaw(byte[] data, byte[] nonce, byte version, byte[] passPhrase = null)
+        private byte[] EncryptRaw(byte[] data, byte[] nonce, byte version, string passPhrase = null)
         {
             int iterations = GetIterationsForVersion(version);
 
-            byte[] encryptKeyPassword = DetermineEncryptionKeyPassword(passPhrase);
+            string encryptKeyPassword = DetermineEncryptionKeyPassword(passPhrase);
 
-            // rfc 2898 is sha1, so we have to do pbkdf2 this way in native c#
-            using (var pbkdf2 = new Rfc2898DeriveBytes(encryptKeyPassword, nonce, iterations))
+            byte[] derivedKey = KeyDerivation.Pbkdf2(
+                                    password: encryptKeyPassword,
+                                    salt: nonce,
+                                    prf: KeyDerivationPrf.HMACSHA1,
+                                    iterationCount: iterations,
+                                    numBytesRequested: AesKeyLengthBytes);
+
+
+            byte[] tag = new byte[TagLengthBytes];
+            byte[] cipherText = new byte[data.Length];
+
+            using (var aesGcm = new AesGcm(derivedKey))
             {
-                byte[] derivedKey = pbkdf2.GetBytes(AesKeyLengthBytes);
-                byte[] tag = new byte[TagLengthBytes];
-                byte[] cipherText = new byte[data.Length];
-
-                using (var aesGcm = new AesGcm(derivedKey)) 
-                {
-                    aesGcm.Encrypt(nonce, data, cipherText, tag);
-                }
-
-                using (var memoryStream = new MemoryStream())
-                {
-                    byte[] versionBuffer = { version };
-
-                    // write the version, salt, and iv first
-                    memoryStream.Write(versionBuffer, 0, VersionLengthBytes);
-                    memoryStream.Write(nonce, 0, NonceLengthBytes);
-                    memoryStream.Write(tag, 0, TagLengthBytes);
-                    memoryStream.Write(cipherText, 0, cipherText.Length);
-                
-                    byte[] result = memoryStream.ToArray();
-
-                    return result;
-                }
+                aesGcm.Encrypt(nonce, data, cipherText, tag);
             }
+
+            using (var memoryStream = new MemoryStream())
+            {
+                byte[] versionBuffer = { version };
+
+                // write the version, salt, and iv first
+                memoryStream.Write(versionBuffer, 0, VersionLengthBytes);
+                memoryStream.Write(nonce, 0, NonceLengthBytes);
+                memoryStream.Write(tag, 0, TagLengthBytes);
+                memoryStream.Write(cipherText, 0, cipherText.Length);
+
+                byte[] result = memoryStream.ToArray();
+
+                return result;
+            }
+
         }
 
-        private byte[] DecryptRaw(byte[] token, byte[] passPhrase)
+        private byte[] DecryptRaw(byte[] token, string passPhrase)
         {
             int tokenCipherTextLength = token.Length - TokenPrefixLengthBytes;
 
@@ -105,19 +106,23 @@
             byte[] cipherText = CopySlice(token, VersionLengthBytes + NonceLengthBytes + TagLengthBytes, tokenCipherTextLength);
 
             int iterations = GetIterationsForVersion(version);
-            byte[] encryptKeyPassword = DetermineEncryptionKeyPassword(passPhrase);
+            string encryptKeyPassword = DetermineEncryptionKeyPassword(passPhrase);
 
-            using (var pbkdf2 = new Rfc2898DeriveBytes(encryptKeyPassword, nonce, iterations))
+            byte[] derivedKey = KeyDerivation.Pbkdf2(
+                    password: encryptKeyPassword,
+                    salt: nonce,
+                    prf: KeyDerivationPrf.HMACSHA1,
+                    iterationCount: iterations,
+                    numBytesRequested: AesKeyLengthBytes);
+
+            byte[] decryptedData = new byte[cipherText.Length];
+            using (var aesGcm = new AesGcm(derivedKey))
             {
-                byte[] derivedKey = pbkdf2.GetBytes(AesKeyLengthBytes);
-                byte[] decryptedData = new byte[cipherText.Length];
-                using (AesGcm aesGcm = new AesGcm(derivedKey))
-                {
-                    aesGcm.Decrypt(nonce, cipherText, tag, decryptedData);
-                }
-
-                return decryptedData;
+                aesGcm.Decrypt(nonce, cipherText, tag, decryptedData);
             }
+
+            return decryptedData;
+
         }
 
         private static int GetIterationsForVersion(byte version)
@@ -140,14 +145,12 @@
             return result;
         }
 
-        private byte[] DetermineEncryptionKeyPassword(byte[] passPhrase)
+        private string DetermineEncryptionKeyPassword(string passPhrase)
         {
-            byte[] encryptKey;
+            string encryptKey;
             if (passPhrase != null)
             {
-                encryptKey = new byte[this.masterKey.Length + passPhrase.Length];
-                Buffer.BlockCopy(this.masterKey, 0, encryptKey, 0, this.masterKey.Length);
-                Buffer.BlockCopy(passPhrase, 0, encryptKey, this.masterKey.Length, passPhrase.Length);
+                return this.masterKey + passPhrase;
             }
             else
             {
