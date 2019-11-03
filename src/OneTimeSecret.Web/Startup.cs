@@ -1,11 +1,11 @@
 ﻿using System.Net;
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting ;
 using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json.Converters;
-using Newtonsoft.Json.Serialization;
 using NodaTime;
 using NodaTime.Serialization.JsonNet;
 using OneTimeSecret.Web.Models.Config;
@@ -57,19 +57,18 @@ namespace OneTimeSecret.Web
             var key = Encoding.UTF8.GetBytes(aesSettings.MasterKey);
 
             services.AddTransient<IAesEncryptionService>(s => new AesEncryptionService(key, aesSettings.Version));
-            services.AddMvc()
+            services
+                .AddMvc()
                 .AddJsonOptions(options =>
             {
-                options.SerializerSettings.NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore;
-                options.SerializerSettings.ConfigureForNodaTime(DateTimeZoneProviders.Tzdb);
-                options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-                options.SerializerSettings.Converters.Add(new StringEnumConverter());
-                options.SerializerSettings.Formatting = Newtonsoft.Json.Formatting.None;
+                options.JsonSerializerOptions.IgnoreNullValues = true;
+                options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                //TODO: figure out NodaTime in 3.0
             }); ;
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
             {
