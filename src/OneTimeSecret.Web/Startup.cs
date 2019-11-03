@@ -11,6 +11,10 @@ using NodaTime.Serialization.JsonNet;
 using OneTimeSecret.Web.Models.Config;
 using OneTimeSecret.Web.Services;
 using StackExchange.Redis;
+using OneTimeSecret.Web.Services.HealthChecks;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http;
 
 namespace OneTimeSecret.Web
 {
@@ -57,6 +61,7 @@ namespace OneTimeSecret.Web
             var key = Encoding.UTF8.GetBytes(aesSettings.MasterKey);
 
             services.AddTransient<IAesEncryptionService>(s => new AesEncryptionService(key, aesSettings.Version));
+
             services
                 .AddMvc()
                 .AddJsonOptions(options =>
@@ -64,7 +69,12 @@ namespace OneTimeSecret.Web
                 options.JsonSerializerOptions.IgnoreNullValues = true;
                 options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
                 //TODO: figure out NodaTime in 3.0
-            }); ;
+            });
+
+            services
+                .AddHealthChecks()
+                .AddCheck<VersionHealthCheck>("version_health_check")
+                .AddCheck<RedisHealthCheck>("redis_health_check");
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -81,8 +91,22 @@ namespace OneTimeSecret.Web
             }
 
             app.UseStaticFiles();
+            app.UseRouting();
 
-            app.UseMvc();
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+                endpoints.MapHealthChecks("/health", new HealthCheckOptions()
+                {
+                    ResponseWriter = HealthCheckResponseWriter.WriteResponse,
+                    ResultStatusCodes =
+                    {
+                        [HealthStatus.Healthy] = StatusCodes.Status200OK,
+                        [HealthStatus.Degraded] = StatusCodes.Status200OK,
+                        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
+                    }
+                });
+            });
         }
     }
 }
