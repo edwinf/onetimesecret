@@ -7,13 +7,13 @@ namespace OneTimeSecret.Web.Controllers
         [Route("error/404")]
         public IActionResult RouteNotFound()
         {
-            return View();
+            return this.View();
         }
 
         [Route("error/500")]
         public IActionResult InternalError()
         {
-            return View();
+            return this.View();
         }
     }
 }

@@ -23,15 +23,15 @@ namespace OneTimeSecret.Web.Services
 
         public string DecryptData(string data, string passphrase = null)
         {
-            var bytes = Convert.FromBase64String(data);
-            var decryptedBites = this.aesEncryptionService.Decrypt(bytes, passphrase);
+            byte[] bytes = Convert.FromBase64String(data);
+            byte[] decryptedBites = this.aesEncryptionService.Decrypt(bytes, passphrase);
             return System.Text.Encoding.UTF8.GetString(decryptedBites);
         }
 
         public string EncryptData(string data, string passphrase = null)
         {
-            var bytes = System.Text.Encoding.UTF8.GetBytes(data);
-            var encryptedBits = this.aesEncryptionService.Encrypt(bytes, passphrase);
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(data);
+            byte[] encryptedBits = this.aesEncryptionService.Encrypt(bytes, passphrase);
             return Convert.ToBase64String(encryptedBits);
         }
     }

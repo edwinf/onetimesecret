@@ -1,20 +1,18 @@
 ﻿using System.Net;
-using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting ;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Hosting;
 using NodaTime;
-using NodaTime.Serialization.JsonNet;
 using OneTimeSecret.Web.Models.Config;
 using OneTimeSecret.Web.Services;
-using StackExchange.Redis;
 using OneTimeSecret.Web.Services.HealthChecks;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.Http;
+using StackExchange.Redis;
 
 namespace OneTimeSecret.Web
 {
@@ -22,7 +20,7 @@ namespace OneTimeSecret.Web
     {
         public Startup(IConfiguration configuration)
         {
-            Configuration = configuration;
+            this.Configuration = configuration;
         }
 
         public IConfiguration Configuration { get; }
@@ -30,7 +28,7 @@ namespace OneTimeSecret.Web
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            var networkingConfig = this.Configuration.GetSection("Networking").Get<NetworkingConfig>();
+            NetworkingConfig networkingConfig = this.Configuration.GetSection("Networking").Get<NetworkingConfig>();
 
             services.Configure<ForwardedHeadersOptions>(options =>
             {
@@ -38,16 +36,15 @@ namespace OneTimeSecret.Web
 
                 if (networkingConfig.KnownProxyServers?.Count > 0)
                 {
-                    foreach (var ip in networkingConfig.KnownProxyServers)
+                    foreach (string ip in networkingConfig.KnownProxyServers)
                     {
                         options.KnownProxies.Add(IPAddress.Parse(ip));
                     }
                 }
             });
 
-            var redisConString = this.Configuration.GetValue<string>("RedisConnectionString");
-            var aesSettings = this.Configuration.GetSection("AesSettings").Get<AesConfig>();
-
+            string redisConString = this.Configuration.GetValue<string>("RedisConnectionString");
+            AesConfig aesSettings = this.Configuration.GetSection("AesSettings").Get<AesConfig>();
 
             services.AddSingleton<IConnectionMultiplexer>(_ =>
                ConnectionMultiplexer.Connect(redisConString));
@@ -66,7 +63,8 @@ namespace OneTimeSecret.Web
             {
                 options.JsonSerializerOptions.IgnoreNullValues = true;
                 options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-                //TODO: figure out NodaTime in 3.0
+
+                // TODO: figure out NodaTime in 3.0
             });
 
             services
@@ -101,8 +99,8 @@ namespace OneTimeSecret.Web
                     {
                         [HealthStatus.Healthy] = StatusCodes.Status200OK,
                         [HealthStatus.Degraded] = StatusCodes.Status200OK,
-                        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
-                    }
+                        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable,
+                    },
                 });
             });
         }

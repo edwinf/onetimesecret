@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -12,7 +11,7 @@ namespace OneTimeSecret.Web.Services.HealthChecks
 {
     public static class HealthCheckResponseWriter
     {
-        //https://docs.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks?view=aspnetcore-3.0#customize-output
+        // https://docs.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks?view=aspnetcore-3.0#customize-output
         public static Task WriteResponse(HttpContext httpContext, HealthReport result)
         {
             httpContext.Response.ContentType = "application/json";
@@ -39,7 +38,7 @@ namespace OneTimeSecret.Web.Services.HealthChecks
             }
             else
             {
-                return null;
+                return string.Empty;
             }
         }
     }

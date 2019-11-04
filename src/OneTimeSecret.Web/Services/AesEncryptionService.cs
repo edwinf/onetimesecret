@@ -1,11 +1,11 @@
-﻿namespace OneTimeSecret.Web.Services
-{
-    using System;
-    using System.IO;
-    using System.Security.Cryptography;
-    using System.Text;
-    using Microsoft.AspNetCore.Cryptography.KeyDerivation;
+﻿using System;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
+using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 
+namespace OneTimeSecret.Web.Services
+{
     public class AesEncryptionService : IAesEncryptionService
     {
         private const int AesKeyLengthBytes = 16; // aes-gcm-128 => 16 byte key
@@ -23,18 +23,18 @@
         {
             if (masterKey == null)
             {
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(masterKey));
             }
             else if (encryptVersion == 0)
             {
-                throw new ArgumentOutOfRangeException("encryptVersion", "version should be greater than zero");
+                throw new ArgumentOutOfRangeException(nameof(encryptVersion), "version should be greater than zero");
             }
 
             this.masterKey = masterKey;
             this.encryptVersion = encryptVersion;
         }
 
-        public byte[] Encrypt(byte[] data, string passPhrase = null)
+        public byte[] Encrypt(byte[] data, string? passPhrase = null)
         {
             byte[] nonce = new byte[NonceLengthBytes];
 
@@ -43,25 +43,42 @@
             return this.EncryptRaw(data, nonce, this.encryptVersion, passPhrase);
         }
 
-        public byte[] Decrypt(byte[] token, string passPhrase = null)
+        public byte[] Decrypt(byte[] token, string? passPhrase = null)
         {
             if (token == null)
             {
-                throw new ArgumentNullException("token");
+                throw new ArgumentNullException(nameof(token));
             }
 
-            return DecryptRaw(token, passPhrase);
+            return this.DecryptRaw(token, passPhrase);
+        }
+
+        private static int GetIterationsForVersion(byte version)
+        {
+            return version switch
+            {
+                1 => Version1Iterations,
+                _ => throw new Exception($"Unknown encryption token version {version}"),
+            };
+        }
+
+        private static byte[] CopySlice(byte[] buffer, int offset, int length)
+        {
+            byte[] result = new byte[length];
+            Array.Copy(buffer, offset, result, 0, length);
+
+            return result;
         }
 
         // NOTE: The format of the result is as follows
         // format: | version | nonce | tag | ciphertext |
         // bytes:  |    1    |  12   | 16 |    16*n    |
         // NOTE: n is the number of blocks needed in the range [1, inf)
-        private byte[] EncryptRaw(byte[] data, byte[] nonce, byte version, string passPhrase = null)
+        private byte[] EncryptRaw(byte[] data, byte[] nonce, byte version, string? passPhrase = null)
         {
             int iterations = GetIterationsForVersion(version);
 
-            string encryptKeyPassword = DetermineEncryptionKeyPassword(passPhrase);
+            string encryptKeyPassword = this.DetermineEncryptionKeyPassword(passPhrase);
 
             byte[] derivedKey = KeyDerivation.Pbkdf2(
                                     password: encryptKeyPassword,
@@ -69,7 +86,6 @@
                                     prf: KeyDerivationPrf.HMACSHA1,
                                     iterationCount: iterations,
                                     numBytesRequested: AesKeyLengthBytes);
-
 
             byte[] tag = new byte[TagLengthBytes];
             byte[] cipherText = new byte[data.Length];
@@ -93,10 +109,9 @@
 
                 return result;
             }
-
         }
 
-        private byte[] DecryptRaw(byte[] token, string passPhrase)
+        private byte[] DecryptRaw(byte[] token, string? passPhrase)
         {
             int tokenCipherTextLength = token.Length - TokenPrefixLengthBytes;
 
@@ -106,7 +121,7 @@
             byte[] cipherText = CopySlice(token, VersionLengthBytes + NonceLengthBytes + TagLengthBytes, tokenCipherTextLength);
 
             int iterations = GetIterationsForVersion(version);
-            string encryptKeyPassword = DetermineEncryptionKeyPassword(passPhrase);
+            string encryptKeyPassword = this.DetermineEncryptionKeyPassword(passPhrase);
 
             byte[] derivedKey = KeyDerivation.Pbkdf2(
                     password: encryptKeyPassword,
@@ -122,30 +137,9 @@
             }
 
             return decryptedData;
-
         }
 
-        private static int GetIterationsForVersion(byte version)
-        {
-            switch (version)
-            {
-                case 1:
-                    return Version1Iterations;
-                default:
-                    string message = string.Format("Unknown encryption token version {0}", version);
-                    throw new Exception(message);
-            }
-        }
-
-        private static byte[] CopySlice(byte[] buffer, int offset, int length)
-        {
-            byte[] result = new byte[length];
-            Array.Copy(buffer, offset, result, 0, length);
-
-            return result;
-        }
-
-        private string DetermineEncryptionKeyPassword(string passPhrase)
+        private string DetermineEncryptionKeyPassword(string? passPhrase)
         {
             string encryptKey;
             if (passPhrase != null)
@@ -158,21 +152,6 @@
             }
 
             return encryptKey;
-        }
-
-        private byte[] Hash(string passPhrase)
-        {
-            byte[] result = null;
-
-            if (passPhrase != null)
-            {
-                using (var sha256 = SHA256.Create())
-                {
-                    result = sha256.ComputeHash(Encoding.UTF8.GetBytes(passPhrase));
-                }
-            }
-
-            return result;
         }
     }
 }

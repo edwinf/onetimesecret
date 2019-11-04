@@ -7,7 +7,7 @@ namespace OneTimeSecret.Web.Utiltiies
         public static string ToHex(this byte[] bytes)
         {
             string hex = BitConverter.ToString(bytes);
-            return hex.Replace("-", "").ToLower();
+            return hex.Replace("-", string.Empty).ToLower();
         }
     }
 }

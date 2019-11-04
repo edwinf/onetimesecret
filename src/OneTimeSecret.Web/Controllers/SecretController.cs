@@ -24,7 +24,7 @@ namespace OneTimeSecret.Web.Controllers
         [Route("")]
         public IActionResult Index()
         {
-            return View();
+            return this.View();
         }
 
         [ValidateAntiForgeryToken]
@@ -36,30 +36,30 @@ namespace OneTimeSecret.Web.Controllers
                 this.View("Index", createSecretViewModel);
             }
 
-            var key = this.cryptoService.CreateRandomString(24);
-            var encryptedData = this.cryptoService.EncryptData(createSecretViewModel.Secret, createSecretViewModel.Passphrase);
+            string key = this.cryptoService.CreateRandomString(24);
+            string encryptedData = this.cryptoService.EncryptData(createSecretViewModel.Secret, createSecretViewModel.Passphrase);
             var expiry = TimeSpan.FromSeconds(createSecretViewModel.TTL);
-            var expiryInstant = this.clock.GetCurrentInstant().Plus(Duration.FromTimeSpan(expiry));
+            Instant expiryInstant = this.clock.GetCurrentInstant().Plus(Duration.FromTimeSpan(expiry));
 
-            RedisModel model = new RedisModel
+            var model = new RedisModel
             {
                 EncryptedData = encryptedData,
-                HasPassphrase = createSecretViewModel.Passphrase != null
+                HasPassphrase = createSecretViewModel.Passphrase != null,
             };
 
-            var redisString = JsonConvert.SerializeObject(model);
+            string redisString = JsonConvert.SerializeObject(model);
 
             this.redis.StringSet(key, redisString, expiry, When.Always);
 
-            var fullAccessUrl = this.Url.Action("ShowSecret", "Secret", new { id = key }, this.Request.Scheme, this.Request.Host.Value);
-            var burnUrl = this.Url.Action("BurnSecret", "Secret", new { id = key }, this.Request.Scheme, this.Request.Host.Value);
+            string fullAccessUrl = this.Url.Action("ShowSecret", "Secret", new { id = key }, this.Request.Scheme, this.Request.Host.Value);
+            string burnUrl = this.Url.Action("BurnSecret", "Secret", new { id = key }, this.Request.Scheme, this.Request.Host.Value);
             var created = new CreatedSecretViewModel
             {
                 AccessUrl = fullAccessUrl,
                 BurnUrl = burnUrl,
                 PassphraseRequired = string.IsNullOrEmpty(createSecretViewModel.Passphrase),
                 Expires = expiryInstant,
-                DurationString = this.DurationString(expiry)
+                DurationString = this.DurationString(expiry),
             };
 
             return this.View(created);
@@ -73,7 +73,7 @@ namespace OneTimeSecret.Web.Controllers
             string data = this.redis.StringGet(id);
             if (data != null)
             {
-                var model = JsonConvert.DeserializeObject<RedisModel>(data);
+                RedisModel model = JsonConvert.DeserializeObject<RedisModel>(data);
                 vm.HasPassphrase = model.HasPassphrase;
             }
 
@@ -89,22 +89,22 @@ namespace OneTimeSecret.Web.Controllers
             {
                 return this.View(new ShowSecretViewModel
                 {
-                    DoesntExist = true
+                    DoesntExist = true,
                 });
             }
 
-            var model = JsonConvert.DeserializeObject<RedisModel>(data);
-            ShowSecretViewModel vm = new ShowSecretViewModel
+            RedisModel model = JsonConvert.DeserializeObject<RedisModel>(data);
+            var vm = new ShowSecretViewModel
             {
-                HasPassphrase = model.HasPassphrase
+                HasPassphrase = model.HasPassphrase,
             };
 
             try
             {
-                var passphrase = this.Request.Form["passphrase"];
+                Microsoft.Extensions.Primitives.StringValues passphrase = this.Request.Form["passphrase"];
 
                 string secret = this.cryptoService.DecryptData(model.EncryptedData, passphrase);
-                
+
                 // always delete before showing to prevent it from being seen twice
                 this.redis.KeyDelete(id);
 
@@ -123,14 +123,10 @@ namespace OneTimeSecret.Web.Controllers
                     throw;
                 }
             }
-
-
-
-
         }
 
         [HttpGet("secret/{id}/burn")]
-        public IActionResult BurnSecret(string id)
+        public IActionResult BurnSecret()
         {
             return this.View();
         }
@@ -140,14 +136,13 @@ namespace OneTimeSecret.Web.Controllers
         public IActionResult BurnSecretConfirmed(string id)
         {
             this.redis.KeyDelete(id);
-            BurnSecretConfirmedViewModel vm = new BurnSecretConfirmedViewModel()
+            var vm = new BurnSecretConfirmedViewModel()
             {
-                BurnedAt = this.clock.GetCurrentInstant()
+                BurnedAt = this.clock.GetCurrentInstant(),
             };
 
             return this.View(vm);
         }
-
 
         private string DurationString(TimeSpan expiry)
         {

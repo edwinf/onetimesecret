@@ -1,10 +1,9 @@
-﻿using Microsoft.AspNetCore;
-using Microsoft.AspNetCore.Hosting;
+﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 
 namespace OneTimeSecret.Web
 {
-    public class Program
+    public static class Program
     {
         public static void Main(string[] args)
         {

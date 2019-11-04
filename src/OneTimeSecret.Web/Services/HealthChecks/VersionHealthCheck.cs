@@ -10,16 +10,16 @@ namespace OneTimeSecret.Web.Services.HealthChecks
 {
     public class VersionHealthCheck : IHealthCheck
     {
-        private static readonly string versionNumber = FileVersionInfo.GetVersionInfo(typeof(SecretController).Assembly.Location).ProductVersion;
+        private static readonly string VersionNumber = FileVersionInfo.GetVersionInfo(typeof(SecretController).Assembly.Location).ProductVersion;
 
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
         {
-            var result = HealthCheckResult.Healthy(data: new ReadOnlyDictionary<string, object>(new Dictionary<string,object>
+            var result = HealthCheckResult.Healthy(data: new ReadOnlyDictionary<string, object>(new Dictionary<string, object>
             {
-                { "version", versionNumber }
+                { "version", VersionNumber },
             }));
 
             return Task.FromResult(result);
         }
-}
+    }
 }
