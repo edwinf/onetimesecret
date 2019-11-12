@@ -19,7 +19,7 @@ namespace OneTimeSecret.Web.Services.HealthChecks
         {
             string randomKey = Guid.NewGuid().ToString();
             this.redisDatabase.StringSet(randomKey, "test", TimeSpan.FromMinutes(1));
-            string test = this.redisDatabase.StringGet(randomKey);
+            this.redisDatabase.StringGet(randomKey);
             return Task.FromResult(HealthCheckResult.Healthy());
         }
     }

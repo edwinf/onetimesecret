@@ -2,8 +2,8 @@
 {
     public interface IAesEncryptionService
     {
-        byte[] Encrypt(byte[] data, string passPhrase = null);
+        byte[] Encrypt(byte[] data, string passPhrase);
 
-        byte[] Decrypt(byte[] token, string passPhrase = null);
+        byte[] Decrypt(byte[] token, string passPhrase);
     }
 }

@@ -4,14 +4,14 @@ namespace OneTimeSecret.Web.Models
 {
     public class CreatedSecretViewModel
     {
-        public string AccessUrl { get; set; }
+        public string AccessUrl { get; set; } = default!;
 
-        public bool PassphraseRequired { get; set; }
+        public bool PassphraseRequired { get; set; } = default!;
 
-        public string DurationString { get; set; }
+        public string DurationString { get; set; } = default!;
 
-        public Instant Expires { get; set; }
+        public Instant Expires { get; set; } = default!;
 
-        public string BurnUrl { get; set; }
+        public string BurnUrl { get; set; } = default!;
     }
 }

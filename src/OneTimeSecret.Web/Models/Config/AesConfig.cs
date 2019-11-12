@@ -2,8 +2,8 @@
 {
     public class AesConfig
     {
-        public string MasterKey { get; set; }
+        public string MasterKey { get; set; } = default!;
 
-        public byte Version { get; set; }
+        public byte Version { get; set; } = default!;
     }
 }

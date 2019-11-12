@@ -4,8 +4,8 @@
     {
         string CreateRandomString(int length);
 
-        string EncryptData(string data, string passphrase = null);
+        string EncryptData(string data, string passphrase);
 
-        string DecryptData(string data, string passphrase = null);
+        string DecryptData(string data, string passphrase);
     }
 }

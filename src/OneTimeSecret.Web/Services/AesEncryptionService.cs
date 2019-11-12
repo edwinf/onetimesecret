@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Security.Cryptography;
-using System.Text;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 
 namespace OneTimeSecret.Web.Services
@@ -34,7 +33,7 @@ namespace OneTimeSecret.Web.Services
             this.encryptVersion = encryptVersion;
         }
 
-        public byte[] Encrypt(byte[] data, string? passPhrase = null)
+        public byte[] Encrypt(byte[] data, string passPhrase)
         {
             byte[] nonce = new byte[NonceLengthBytes];
 
@@ -43,7 +42,7 @@ namespace OneTimeSecret.Web.Services
             return this.EncryptRaw(data, nonce, this.encryptVersion, passPhrase);
         }
 
-        public byte[] Decrypt(byte[] token, string? passPhrase = null)
+        public byte[] Decrypt(byte[] token, string passPhrase)
         {
             if (token == null)
             {
@@ -74,7 +73,7 @@ namespace OneTimeSecret.Web.Services
         // format: | version | nonce | tag | ciphertext |
         // bytes:  |    1    |  12   | 16 |    16*n    |
         // NOTE: n is the number of blocks needed in the range [1, inf)
-        private byte[] EncryptRaw(byte[] data, byte[] nonce, byte version, string? passPhrase = null)
+        private byte[] EncryptRaw(byte[] data, byte[] nonce, byte version, string passPhrase)
         {
             int iterations = GetIterationsForVersion(version);
 
@@ -111,7 +110,7 @@ namespace OneTimeSecret.Web.Services
             }
         }
 
-        private byte[] DecryptRaw(byte[] token, string? passPhrase)
+        private byte[] DecryptRaw(byte[] token, string passPhrase)
         {
             int tokenCipherTextLength = token.Length - TokenPrefixLengthBytes;
 
@@ -139,16 +138,16 @@ namespace OneTimeSecret.Web.Services
             return decryptedData;
         }
 
-        private string DetermineEncryptionKeyPassword(string? passPhrase)
+        private string DetermineEncryptionKeyPassword(string passPhrase)
         {
             string encryptKey;
-            if (passPhrase != null)
+            if (string.IsNullOrEmpty(passPhrase))
             {
-                return this.masterKey + passPhrase;
+                encryptKey = this.masterKey;
             }
             else
             {
-                encryptKey = this.masterKey;
+                return this.masterKey + passPhrase;
             }
 
             return encryptKey;

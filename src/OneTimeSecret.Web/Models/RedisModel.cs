@@ -2,8 +2,8 @@
 {
     public class RedisModel
     {
-        public bool HasPassphrase { get; set; }
+        public bool HasPassphrase { get; set; } = default!;
 
-        public string EncryptedData { get; set; }
+        public string EncryptedData { get; set; } = default!;
     }
 }

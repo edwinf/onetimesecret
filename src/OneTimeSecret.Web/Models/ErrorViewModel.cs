@@ -2,7 +2,7 @@ namespace OneTimeSecret.Web.Models
 {
     public class ErrorViewModel
     {
-        public string RequestId { get; set; }
+        public string RequestId { get; set; } = default!;
 
         public bool ShowRequestId => !string.IsNullOrEmpty(this.RequestId);
     }
